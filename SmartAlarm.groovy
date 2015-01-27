@@ -5,7 +5,7 @@
  *  Please visit <http://statusbits.github.io/smartalarm/> for more
  *  information.
  *
- *  Version 2.2.6 (01/27/2015)
+ *  Version 2.3.0 (01/27/2015)
  *
  *  The latest version of this file can be found on GitHub at:
  *  <https://github.com/statusbits/smartalarm/blob/master/SmartAlarm.groovy>
@@ -1589,7 +1589,7 @@ private def buildNumber() {
 }
 
 private def textVersion() {
-    def text = "Version 2.2.6 (01/27/2015)"
+    def text = "Version 2.3.0 (01/27/2015)"
 }
 
 private def textCopyright() {
