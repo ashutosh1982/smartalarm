@@ -1,6 +1,6 @@
 /**
  *  Smart Alarm is a versatile and highly configurable home security
- *  for the SmartThings.
+ *  application for SmartThings.
  *
  *  Please visit <http://statusbits.github.io/smartalarm/> for more
  *  information.
@@ -71,7 +71,7 @@ mappings {
     }
 
     path("/status") {
-        action: [ GET: "apiGetStatus" ]
+        action: [ GET: "apiStatus" ]
     }
 }
 
@@ -933,7 +933,7 @@ private def setupInit() {
 }
 
 private def initialize() {
-    log.trace "${app.name}. ${textVersion()}. ${textCopyright()}"
+    log.info "${app.name}. ${textVersion()}. ${textCopyright()}"
 
     state._init_ = true
     state.exitDelay = settings.exitDelay?.toInteger() ?: 0
@@ -951,6 +951,7 @@ private def initialize() {
         state.stay = false
     }
 
+    initControlPanel()
     initZones()
     initButtons()
     initRestApi()
@@ -959,6 +960,49 @@ private def initialize() {
 
     STATE()
     state._init_ = false
+}
+
+private def initControlPanel() {
+    TRACE("initControlPanel()")
+
+    if (state.controlPanel) {
+        def cp = getChildDevice(state.controlPanel)
+        if (!cp) {
+            log.error "Control panel not found"
+            state.controlPanel = null
+        }
+    }
+
+    if (state.controlPanel == null) {
+        def dni = createControlPanel(app.name)
+        if (dni) {
+            state.controlPanel = dni
+            log.info "Created control panel. DNI: ${dni}"
+        } else {
+            log.error "Cannot create control panel."
+        }
+    }
+}
+
+private def createControlPanel(name) {
+    TRACE("createControlPanel(${name})")
+
+    def dni = createNetworkId()
+    def devFile = "SmartAlarm Control Panel"
+    def devParams = [
+        name:           name,
+        label:          name,
+        completedSetup: true
+    ]
+
+    try {
+        def dev = addChildDevice("statusbits", devFile, dni, null, devParams)
+    } catch (e) {
+        log.error e
+        return null
+    }
+
+    return dni
 }
 
 private def initRestApi() {
@@ -1205,7 +1249,7 @@ def onButtonPushed(evt) {
         TRACE("Button '${button}' was pushed.")
         def action = state.buttonActions["${button}"]
         if (action) {
-            log.trace "Executing button action ${action}()"
+            TRACE("Executing button action ${action}()")
             "${action}"()
         }
     }
@@ -1254,7 +1298,7 @@ def armEntranceZones() {
             }
         }
         def msg = "Entrance zones are armed"
-        log.trace msg
+        log.info msg
         notify(msg)
     }
 }
@@ -1283,7 +1327,7 @@ def apiArmAway() {
     }
 
     armAway()
-    return apiGetStatus()
+    return apiStatus()
 }
 
 // .../armstay REST API endpoint
@@ -1303,7 +1347,7 @@ def apiArmStay() {
     }
 
     armStay()
-    return apiGetStatus()
+    return apiStatus()
 }
 
 // .../disarm REST API endpoint
@@ -1323,7 +1367,7 @@ def apiDisarm() {
     }
 
     disarm()
-    return apiGetStatus()
+    return apiStatus()
 }
 
 // .../panic REST API endpoint
@@ -1336,12 +1380,12 @@ def apiPanic() {
     }
 
     panic()
-    return apiGetStatus()
+    return apiStatus()
 }
 
 // .../status REST API endpoint
-def apiGetStatus() {
-    TRACE("apiGetStatus()")
+def apiStatus() {
+    TRACE("apiStatus()")
 
     if (!isRestApiEnabled()) {
         log.error "REST API disabled"
@@ -1381,7 +1425,7 @@ def activateAlarm() {
 
     // Execute Hello Home action
     if (settings.helloHomeAction) {
-        log.trace "Executing HelloHome action \'${settings.helloHomeAction}\'"
+        log.info "Executing HelloHome action \'${settings.helloHomeAction}\'"
         location.helloHome.execute(settings.helloHomeAction)
     }
 
@@ -1392,7 +1436,7 @@ def activateAlarm() {
             msg += "\n${it.alarm}"
         }
     }
-    log.trace msg
+    log.info msg
     notify(msg)
     notifyVoice()
 
@@ -1584,6 +1628,13 @@ private def mySendPush(msg) {
     }
 }
 
+private def createNetworkId() {
+    String hexchars = "0123456789ABCDEF"
+    Random rand = new Random(now())
+    def chars = (0..7).collect { hexchars[rand.nextInt(16)] }
+    return chars.join()
+}
+
 private def buildNumber() {
     return 150127
 }
@@ -1611,10 +1662,10 @@ private def textLicense() {
 }
 
 private def TRACE(message) {
-    //log.debug message
+    log.trace message
 }
 
 private def STATE() {
-    //log.trace "settings: ${settings}"
-    //log.trace "state: ${state}"
+    log.trace "settings: ${settings}"
+    log.trace "state: ${state}"
 }
