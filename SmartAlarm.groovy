@@ -1005,6 +1005,39 @@ private def createControlPanel(name) {
     return dni
 }
 
+private def updateControlPanel() {
+    TRACE("updateControlPanel()")
+
+    if (state.controlPanel == null) {
+        return
+    }
+
+    def cp = getChildDevice(state.controlPanel)
+    if (!cp) {
+        log.error "Control panel not found"
+        state.controlPanel = null
+        return
+    }
+
+    if (state.alarm) {
+        state.zones.each() {
+            if (it.alarm) {
+                cp.parse("status: alarm, reason: ${it.alarm}")
+                return
+            }
+        }
+
+        cp.parse("status: alarm, reason: panic")
+    }
+
+    if (state.armed) {
+        def mode = state.stay ? "stay" : "away"
+        cp.parse("status: armed, mode: ${mode}")
+    } else {
+        cp.parse("status: disarmed")
+    }
+}
+
 private def initRestApi() {
     if (settings.restApiEnabled) {
         if (!state.accessToken) {
@@ -1173,6 +1206,8 @@ def resetPanel() {
     if (state.armed && !state.stay && state.exitDelay) {
         myRunIn(state.exitDelay, armEntranceZones)
     }
+
+    updateControlPanel()
 
     // Send notification
     def msg = "${location.name} alarm is "

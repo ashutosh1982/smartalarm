@@ -48,8 +48,8 @@ metadata {
         standardTile("status", "device.status") {
             state "default",    label:'Not Ready',   backgroundColor:"#999999", icon:"st.security.alarm.off"
             state "disarmed",   label:'Disarmed',    backgroundColor:"#7FCC33", icon:"st.security.alarm.off"
-            state "exitDelay",  label:'Exit Delay',  backgroundColor:"#FFE066", icon:"st.security.alarm.on"
-            state "entryDelay", label:'Entry Delay', backgroundColor:"#FFE066", icon:"st.security.alarm.on"
+            state "exitDelay",  label:'Exit Delay',  backgroundColor:"#FFCC33", icon:"st.security.alarm.on"
+            state "entryDelay", label:'Entry Delay', backgroundColor:"#FFCC33", icon:"st.security.alarm.on"
             state "armedAway",  label:'Armed Away',  backgroundColor:"#0099FF", icon:"st.security.alarm.on"
             state "armedStay",  label:'Armed Stay',  backgroundColor:"#0099FF", icon:"st.security.alarm.on"
             state "alarm",      label:'Alarm',       backgroundColor:"#FF3300", icon:"st.security.alarm.alarm"
@@ -231,45 +231,55 @@ def refresh() {
 private def statusArmed(mode) {
     LOG("statusArmed(${mode})")
 
-    def description = "${device.displayName} ARMED ${mode.toUpper()}"
-    updateStatus("disarmed", description)
-    updateDisplay("DISARMED ${mode.toUpper()}")
+    def armed
+    if (mode == "away") {
+        armed = "armedAway"
+    } else if (mode == "stay") {
+        armed = "armedStay"
+    } else {
+        error.log "Invalid mode: ${mode}"
+        return
+    }
+
+    def status = "ARMED ${mode.toUpperCase()}"
+    updateStatus(armed, "${device.displayName} ${status}")
+    updateDisplay(status)
 }
 
 // Disarmed status handler
 private def statusDisarmed() {
     LOG("statusDisarmed()")
 
-    def description = "${device.displayName} DISARMED"
-    updateStatus("disarmed", description)
-    updateDisplay("DISARMED")
+    def status = "DISARMED"
+    updateStatus("disarmed", "${device.displayName} ${status}")
+    updateDisplay(status)
 }
 
 // 'exitDelay' status handler
 private def statusExitDelay() {
     LOG("statusExitDelay()")
 
-    def description = "${device.displayName} EXIT DELAY"
-    updateStatus("exitDelay", description)
-    updateDisplay("EXIT DELAY")
+    def status = "EXIT DELAY"
+    updateStatus("exitDelay", "${device.displayName} ${status}")
+    updateDisplay(status)
 }
 
 // 'entryDelay' status handler
 private def statusEntryDelay() {
     LOG("statusEntryDelay()")
 
-    def description = "${device.displayName} ENTRY DELAY"
-    updateStatus("entryDelay", description)
-    updateDisplay("ENTRY DELAY")
+    def status = "ENTRY DELAY"
+    updateStatus("entryDelay", "${device.displayName} ${status}")
+    updateDisplay(status)
 }
 
 // 'alarm' status handler
 private def statusAlarm(reason) {
     LOG("statusAlarm(${reason})")
 
-    def description = "${device.displayName} ALARM: ${reason}"
-    updateStatus("alarm", description)
-    updateDisplay("ALARM: ${reason}")
+    def status = "ALARM: ${reason}"
+    updateStatus("alarm", "${device.displayName} ${status}")
+    updateDisplay(status)
 }
 
 private def updateStatus(status, description) {
