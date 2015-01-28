@@ -30,7 +30,7 @@ metadata {
     definition (name:"SmartAlarm Control Panel", namespace:"statusbits", author:"geko@statusbits.com") {
         capability "Switch"
         capability "Alarm"
-        capability "Refresh"
+        //capability "Refresh"
 
         // Custom attributes
         attribute "status", "string"
@@ -46,11 +46,13 @@ metadata {
 
     tiles {
         standardTile("status", "device.status") {
-            state "default",    label:'Not Ready',  backgroundColor:"#999999", icon:"st.security.alarm.off"
-            state "disarmed",   label:'Disarmed',   backgroundColor:"#7FCC33", icon:"st.security.alarm.off"
-            state "armedAway",  label:'Armed Away', backgroundColor:"#0099FF", icon:"st.security.alarm.on"
-            state "armedStay",  label:'Armed Stay', backgroundColor:"#0099FF", icon:"st.security.alarm.partial"
-            state "alarm",      label:'Alarm',      backgroundColor:"#FF3300", icon:"st.security.alarm.alarm"
+            state "default",    label:'Not Ready',   backgroundColor:"#999999", icon:"st.security.alarm.off"
+            state "disarmed",   label:'Disarmed',    backgroundColor:"#7FCC33", icon:"st.security.alarm.off"
+            state "exitDelay",  label:'Exit Delay',  backgroundColor:"#FFE066", icon:"st.security.alarm.on"
+            state "entryDelay", label:'Entry Delay', backgroundColor:"#FFE066", icon:"st.security.alarm.on"
+            state "armedAway",  label:'Armed Away',  backgroundColor:"#0099FF", icon:"st.security.alarm.on"
+            state "armedStay",  label:'Armed Stay',  backgroundColor:"#0099FF", icon:"st.security.alarm.on"
+            state "alarm",      label:'Alarm',       backgroundColor:"#FF3300", icon:"st.security.alarm.alarm"
         }
 
         valueTile("display", "device.display", width:3, height:1, decoration:"flat", inactiveLabel:false) {
@@ -58,7 +60,7 @@ metadata {
         }
 
         standardTile("armAway", "device.status", decoration:"flat", inactiveLabel:false) {
-            state "default", label:'Arm Away', icon:"st.security.alarm.on",action:"armAway"
+            state "default", label:'Arm Away', icon:"st.security.alarm.on", action:"armAway"
         }
 
         standardTile("armStay", "device.status", decoration:"flat", inactiveLabel:false) {
@@ -73,16 +75,12 @@ metadata {
             state "default", label:'Panic', icon:"st.security.alarm.alarm", action:"panic"
         }
 
-        standardTile("refresh", "device.status", decoration:"flat", inactiveLabel:false) {
-            state "default", icon:"st.secondary.refresh", action:"refresh.refresh"
-        }
-
         main("status")
 
         details([
-            "display",
-            "disarm", "armAway", "armStay",
-            "panic", "status", "refresh"
+            "display",                      // 1st row
+            "disarm", "armAway", "armStay", // 2nd row
+            "panic", "status",              // 3rd row
         ])
     }
 
@@ -93,9 +91,11 @@ metadata {
     }
 
     simulator {
+        status "Disarmed":      "status: disarmed"
+        status "Exit Delay":    "status: exitDelay"
+        status "Entry Delay":   "status: entryDelay"
         status "Armed Away":    "status: armed, mode: away"
         status "Armed Stay":    "status: armed, mode: stay"
-        status "Disarmed":      "status: disarmed"
         status "Alarm":         "status: alarm, reason: Entrance Door"
         status "Panic":         "status: alarm, reason: panic"
     }
@@ -104,7 +104,6 @@ metadata {
 def updated() {
     log.info "SmartAlarm Control Panel. Version 0.2. Copyright © 2015 Statusbits.com"
     LOG("updated with ${settings}")
-
     LOG("state: ${state}")
 }
 
@@ -113,7 +112,7 @@ def parse(String message) {
     LOG("parse(${message})")
 
     if (message == "updated") {
-        initialize()
+        statusDisarmed()
         return null
     }
 
@@ -132,6 +131,14 @@ def parse(String message) {
             statusDisarmed()
             break
 
+        case "exitDelay":
+            statusExitDelay()
+            break
+
+        case "entryDelay":
+            statusEntryDelay()
+            break
+
         case "alarm":
             statusAlarm(map.reason)
             break
@@ -143,21 +150,33 @@ def parse(String message) {
 // "armAway" command handler
 def armAway() {
     LOG("armAway()")
+    if (parent) {
+        parent.armAway()
+    }
 }
 
 // "armStay" command handler
 def armStay() {
     LOG("armStay()")
+    if (parent) {
+        parent.armStay()
+    }
 }
 
 // "disarm" command handler
 def disarm() {
     LOG("disarm()")
+    if (parent) {
+        parent.disarm()
+    }
 }
 
 // "panic" command handler
 def panic() {
     LOG("panic()")
+    if (parent) {
+        parent.panic()
+    }
 }
 
 // "alarm.siren" command handler
@@ -181,15 +200,25 @@ def both() {
 // "alarm.off" and "switch.off" command handler
 def off() {
     LOG("off()")
-
-    if (device.currentValue("status") == "alarm") {
-        disarm()
-    }
+    disarm()
 }
 
 // "switch.on" command handler
 def on() {
     LOG("on()")
+
+    def mode
+    if (settings.defaultMode) {
+        mode = settings.defaultMode
+    } else {
+        mode = "Away"
+    }
+
+    if (mode == "Away") {
+        armAway()
+    } else {
+        armStay()
+    }
 }
 
 // "refresh.refresh" command handler
@@ -198,33 +227,56 @@ def refresh() {
     STATE()
 }
 
-private def initialize() {
-    LOG("initialize()")
-}
-
 // Armed status handler
 private def statusArmed(mode) {
     LOG("statusArmed(${mode})")
 
-    def event = [
-        name:               "status",
-        value:              "armed ${mode}",
-        descriptionText:    "${device.displayName} ARMED ${mode}",
-        isStateChange:      true
-    ]
-
-    LOG("sending event ${event}")
-    sendEvent(event)
+    def description = "${device.displayName} ARMED ${mode.toUpper()}"
+    updateStatus("disarmed", description)
+    updateDisplay("DISARMED ${mode.toUpper()}")
 }
 
 // Disarmed status handler
 private def statusDisarmed() {
     LOG("statusDisarmed()")
 
+    def description = "${device.displayName} DISARMED"
+    updateStatus("disarmed", description)
+    updateDisplay("DISARMED")
+}
+
+// 'exitDelay' status handler
+private def statusExitDelay() {
+    LOG("statusExitDelay()")
+
+    def description = "${device.displayName} EXIT DELAY"
+    updateStatus("exitDelay", description)
+    updateDisplay("EXIT DELAY")
+}
+
+// 'entryDelay' status handler
+private def statusEntryDelay() {
+    LOG("statusEntryDelay()")
+
+    def description = "${device.displayName} ENTRY DELAY"
+    updateStatus("entryDelay", description)
+    updateDisplay("ENTRY DELAY")
+}
+
+// 'alarm' status handler
+private def statusAlarm(reason) {
+    LOG("statusAlarm(${reason})")
+
+    def description = "${device.displayName} ALARM: ${reason}"
+    updateStatus("alarm", description)
+    updateDisplay("ALARM: ${reason}")
+}
+
+private def updateStatus(status, description) {
     def event = [
         name:               "status",
-        value:              "disarmed",
-        descriptionText:    "${device.displayName} DISARMED",
+        value:              status,
+        descriptionText:    description,
         isStateChange:      true
     ]
 
@@ -232,14 +284,11 @@ private def statusDisarmed() {
     sendEvent(event)
 }
 
-// Alarm status handler
-private def statusAlarm(reason) {
-    LOG("statusAlarm(${reason})")
-
+private def updateDisplay(message) {
     def event = [
-        name:               "status",
-        value:              "alarm",
-        descriptionText:    "${device.displayName} ALARM: ${reason}",
+        name:               "display",
+        value:              message,
+        descriptionText:    message,
         isStateChange:      true
     ]
 
