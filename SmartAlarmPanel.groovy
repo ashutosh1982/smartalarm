@@ -3,7 +3,7 @@
  *
  *  This device handler implements virtual control panel for Smart Alarm app.
  *
- *  Version: 0.2 (01/27/2015)
+ *  Version: 0.3 (01/31/2015)
  *
  *  The latest version of this file can be found at:
  *  https://github.com/statusbits/smartalarm/blob/master/SmartAlarmPanel.groovy
@@ -96,13 +96,13 @@ metadata {
         status "Entry Delay":   "status: entryDelay"
         status "Armed Away":    "status: armed, mode: away"
         status "Armed Stay":    "status: armed, mode: stay"
-        status "Alarm":         "status: alarm, reason: Entrance Door"
-        status "Panic":         "status: alarm, reason: panic"
+        status "Alarm":         "status: alarm, zone: Entrance Door"
+        status "Panic":         "status: alarm, zone: panic"
     }
 }
 
 def updated() {
-    log.info "SmartAlarm Control Panel. Version 0.2. Copyright © 2015 Statusbits.com"
+    log.info "SmartAlarm Control Panel. Version 0.3. Copyright © 2015 Statusbits.com"
     LOG("updated with ${settings}")
     LOG("state: ${state}")
 }
@@ -140,7 +140,7 @@ def parse(String message) {
             break
 
         case "alarm":
-            statusAlarm(map.reason)
+            statusAlarm(map.zone)
             break
     }
 
@@ -274,10 +274,10 @@ private def statusEntryDelay() {
 }
 
 // 'alarm' status handler
-private def statusAlarm(reason) {
-    LOG("statusAlarm(${reason})")
+private def statusAlarm(zone) {
+    LOG("statusAlarm(${zone})")
 
-    def status = "ALARM: ${reason}"
+    def status = "ALARM: ${zone}"
     updateStatus("alarm", "${device.displayName} ${status}")
     updateDisplay(status)
 }
@@ -307,11 +307,11 @@ private def updateDisplay(message) {
 }
 
 private def LOG(message) {
-    log.debug message
+    log.trace message
 }
 
 private def STATE() {
-    log.debug "state: ${state}"
-    log.debug "state: ${device.currentValue("status")}"
-    log.debug "display: ${device.currentValue("display")}"
+    log.trace "state: ${state}"
+    log.trace "state: ${device.currentValue("status")}"
+    log.trace "display: ${device.currentValue("display")}"
 }

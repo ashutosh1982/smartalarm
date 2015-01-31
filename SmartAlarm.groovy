@@ -5,7 +5,7 @@
  *  Please visit <http://statusbits.github.io/smartalarm/> for more
  *  information.
  *
- *  Version 2.3.0 (01/27/2015)
+ *  Version 2.3.0 (01/31/2015)
  *
  *  The latest version of this file can be found on GitHub at:
  *  <https://github.com/statusbits/smartalarm/blob/master/SmartAlarm.groovy>
@@ -90,7 +90,7 @@ preferences {
 
 // Show setup page
 def pageSetup() {
-    TRACE("pageSetup()")
+    LOG("pageSetup()")
 
     if (state.version != buildNumber()) {
         setupInit()
@@ -138,7 +138,7 @@ def pageSetup() {
 
 // Show "About" page
 def pageAbout() {
-    TRACE("pageAbout()")
+    LOG("pageAbout()")
 
     def textAbout =
         "${textVersion()}\n${textCopyright()}\n\n" +
@@ -174,7 +174,7 @@ def pageAbout() {
 
 // Show "Zone Status" page
 def pageZoneStatus() {
-    TRACE("pageZoneStatus()")
+    LOG("pageZoneStatus()")
 
     def pageProperties = [
         name:       "pageZoneStatus",
@@ -215,7 +215,7 @@ def pageZoneStatus() {
 
 // Show "Add/Remove Zones" page
 def pageSelectZones() {
-    TRACE("pageZoneSettings()")
+    LOG("pageZoneSettings()")
 
     def helpPage =
         "A security zone is an area or your property protected by one of " +
@@ -274,7 +274,7 @@ def pageSelectZones() {
 
 // Show "Zone Settings" page
 def pageZoneSettings() {
-    TRACE("pageZoneSettings()")
+    LOG("pageZoneSettings()")
 
     def helpPage =
         "Each zone can be designated as Exterior (default), Interior, " +
@@ -366,7 +366,7 @@ def pageZoneSettings() {
 
 // Show "Smart Alarm Settings" page
 def pageAlarmSettings() {
-    TRACE("pageAlarmSettings()")
+    LOG("pageAlarmSettings()")
 
     def helpArming =
         "Smart Alarm can be armed and disarmed by simply setting the home " +
@@ -519,7 +519,7 @@ def pageAlarmSettings() {
 
 // Show "Notification Options" page
 def pageNotifications() {
-    TRACE("pageNotifications()")
+    LOG("pageNotifications()")
 
     def helpAbout =
         "Smart Alarm has multiple ways of notifying you when its armed, " +
@@ -692,7 +692,7 @@ def pageNotifications() {
 
 // Show "Voice Notification Options" page
 def pageVoiceOptions() {
-    TRACE("pageVoiceOptions()")
+    LOG("pageVoiceOptions()")
 
     def helpAbout =
         "Smart Alarm can utilize available speech synthesis devices (e.g. " +
@@ -771,7 +771,7 @@ def pageVoiceOptions() {
 
 // Show "Remote Control Options" page
 def pageRemoteControl() {
-    TRACE("pageRemoteControl()")
+    LOG("pageRemoteControl()")
 
     def textHelp =
         "You can use remote controls such as Aeon Labs Minimote to arm " +
@@ -843,7 +843,7 @@ def pageRemoteControl() {
 
 // Show "Control Panel Options" page
 def pageRestApiOptions() {
-    TRACE("pageRestApiOptions()")
+    LOG("pageRestApiOptions()")
 
     def textHelp =
         "Smart Alarm can be controlled remotely by any Web client using " +
@@ -906,14 +906,14 @@ def pageRestApiOptions() {
 }
 
 def installed() {
-    TRACE("installed()")
+    LOG("installed()")
 
     initialize()
     state.installed = true
 }
 
 def updated() {
-    TRACE("updated()")
+    LOG("updated()")
 
     unsubscribe()
     unschedule()
@@ -921,7 +921,7 @@ def updated() {
 }
 
 private def setupInit() {
-    TRACE("setupInit()")
+    LOG("setupInit()")
 
     state.version = buildNumber()
     if (state.installed == null) {
@@ -934,6 +934,7 @@ private def setupInit() {
 
 private def initialize() {
     log.info "${app.name}. ${textVersion()}. ${textCopyright()}"
+    log.debug "initialize with ${settings}"
 
     state._init_ = true
     state.exitDelay = settings.exitDelay?.toInteger() ?: 0
@@ -963,7 +964,7 @@ private def initialize() {
 }
 
 private def initControlPanel() {
-    TRACE("initControlPanel()")
+    LOG("initControlPanel()")
 
     if (state.controlPanel) {
         def cp = getChildDevice(state.controlPanel)
@@ -985,7 +986,7 @@ private def initControlPanel() {
 }
 
 private def createControlPanel(name) {
-    TRACE("createControlPanel(${name})")
+    LOG("createControlPanel(${name})")
 
     def dni = createNetworkId()
     def devFile = "SmartAlarm Control Panel"
@@ -1006,7 +1007,7 @@ private def createControlPanel(name) {
 }
 
 private def updateControlPanel() {
-    TRACE("updateControlPanel()")
+    LOG("updateControlPanel()")
 
     if (state.controlPanel == null) {
         return
@@ -1022,12 +1023,12 @@ private def updateControlPanel() {
     if (state.alarm) {
         state.zones.each() {
             if (it.alarm) {
-                cp.parse("status: alarm, reason: ${it.alarm}")
+                cp.parse("status: alarm, zone: ${it.alarm}")
                 return
             }
         }
 
-        cp.parse("status: alarm, reason: panic")
+        cp.parse("status: alarm, zone: panic")
     }
 
     if (state.armed) {
@@ -1042,7 +1043,7 @@ private def initRestApi() {
     if (settings.restApiEnabled) {
         if (!state.accessToken) {
             def token = createAccessToken()
-            TRACE("Created new access token: ${token})")
+            LOG("Created new access token: ${token})")
         }
         state.url = "https://graph.api.smartthings.com/api/smartapps/installations/${app.id}/"
         log.info "REST API enabled"
@@ -1057,7 +1058,7 @@ private def isRestApiEnabled() {
 }
 
 private def initZones() {
-    TRACE("initZones()")
+    LOG("initZones()")
 
     state.zones = []
 
@@ -1102,7 +1103,7 @@ private def initZones() {
     if (settings.z_smoke) {
         settings.z_smoke.each() {
             String zoneName = "smoke: ${it.displayName}"
-            TRACE("zoneName: ${zoneName}")
+            LOG("zoneName: ${zoneName}")
             def zone = [
                 deviceId:   it.id,
                 sensorType: "smoke",
@@ -1125,7 +1126,7 @@ private def initZones() {
     if (settings.z_water) {
         settings.z_water.each() {
             String zoneName = "water: ${it.displayName}"
-            TRACE("zoneName: ${zoneName}")
+            LOG("zoneName: ${zoneName}")
             def zone = [
                 deviceId:   it.id,
                 sensorType: "water",
@@ -1144,7 +1145,7 @@ private def initZones() {
 }
 
 private def initButtons() {
-    TRACE("initButtons()")
+    LOG("initButtons()")
 
     state.buttonActions = [:]
     if (settings.buttons) {
@@ -1166,7 +1167,7 @@ private def initButtons() {
 }
 
 def resetPanel() {
-    TRACE("resetPanel()")
+    LOG("resetPanel()")
 
     unschedule()
     settings.alarms*.off()
@@ -1174,7 +1175,7 @@ def resetPanel() {
     // only turn back off those switches that we turned on
     def switchesOff = state.offSwitches
     if (switchesOff) {
-        TRACE("switchesOff: ${switchesOff}")
+        LOG("switchesOff: ${switchesOff}")
         settings.switches.each() {
             if (switchesOff.contains(it.id)) {
                 it.off()
@@ -1224,7 +1225,7 @@ def resetPanel() {
 }
 
 private def onZoneEvent(evt, sensorType) {
-    TRACE("onZoneEvent(${evt.displayName}, ${sensorType})")
+    LOG("onZoneEvent(${evt.displayName}, ${sensorType})")
 
     def zone = getZoneForDevice(evt.deviceId, sensorType)
     if (!zone) {
@@ -1258,7 +1259,7 @@ def onSmoke(evt)    { onZoneEvent(evt, "smoke") }
 def onWater(evt)    { onZoneEvent(evt, "water") }
 
 def onLocation(evt) {
-    TRACE("onLocation(${evt.value})")
+    LOG("onLocation(${evt.value})")
 
     String mode = evt.value
     if (settings.awayModes?.contains(mode)) {
@@ -1271,7 +1272,7 @@ def onLocation(evt) {
 }
 
 def onButtonPushed(evt) {
-    TRACE("onButtonPushed(${evt.displayName})")
+    LOG("onButtonPushed(${evt.displayName})")
 
     if (!evt.data) {
         return
@@ -1281,17 +1282,17 @@ def onButtonPushed(evt) {
     def data = slurper.parseText(evt.data)
     def button = data.buttonNumber
     if (button) {
-        TRACE("Button '${button}' was pushed.")
+        LOG("Button '${button}' was pushed.")
         def action = state.buttonActions["${button}"]
         if (action) {
-            TRACE("Executing button action ${action}()")
+            LOG("Executing button action ${action}()")
             "${action}"()
         }
     }
 }
 
 def armAway() {
-    TRACE("armAway()")
+    LOG("armAway()")
 
     if (state.armed && !state.stay) {
         return
@@ -1303,7 +1304,7 @@ def armAway() {
 }
 
 def armStay() {
-    TRACE("armStay()")
+    LOG("armStay()")
 
     if (state.armed && state.stay) {
         return
@@ -1315,7 +1316,7 @@ def armStay() {
 }
 
 def disarm() {
-    TRACE("disarm()")
+    LOG("disarm()")
 
     if (state.armed) {
         state.armed = false
@@ -1324,7 +1325,7 @@ def disarm() {
 }
 
 def armEntranceZones() {
-    TRACE("armEntranceZones()")
+    LOG("armEntranceZones()")
 
     if (state.armed) {
         state.zones.each() {
@@ -1339,7 +1340,7 @@ def armEntranceZones() {
 }
 
 def panic() {
-    TRACE("panic()")
+    LOG("panic()")
 
     state.alarm = true;
     activateAlarm()
@@ -1347,7 +1348,7 @@ def panic() {
 
 // .../armaway REST API endpoint
 def apiArmAway() {
-    TRACE("apiArmAway()")
+    LOG("apiArmAway()")
 
     if (!isRestApiEnabled()) {
         log.error "REST API disabled"
@@ -1367,7 +1368,7 @@ def apiArmAway() {
 
 // .../armstay REST API endpoint
 def apiArmStay() {
-    TRACE("apiArmStay()")
+    LOG("apiArmStay()")
 
     if (!isRestApiEnabled()) {
         log.error "REST API disabled"
@@ -1387,7 +1388,7 @@ def apiArmStay() {
 
 // .../disarm REST API endpoint
 def apiDisarm() {
-    TRACE("apiDisarm()")
+    LOG("apiDisarm()")
 
     if (!isRestApiEnabled()) {
         log.error "REST API disabled"
@@ -1407,7 +1408,7 @@ def apiDisarm() {
 
 // .../panic REST API endpoint
 def apiPanic() {
-    TRACE("apiPanic()")
+    LOG("apiPanic()")
 
     if (!isRestApiEnabled()) {
         log.error "REST API disabled"
@@ -1420,7 +1421,7 @@ def apiPanic() {
 
 // .../status REST API endpoint
 def apiStatus() {
-    TRACE("apiStatus()")
+    LOG("apiStatus()")
 
     if (!isRestApiEnabled()) {
         log.error "REST API disabled"
@@ -1435,7 +1436,7 @@ def apiStatus() {
 }
 
 def activateAlarm() {
-    TRACE("activateAlarm()")
+    LOG("activateAlarm()")
 
     if (!state.alarm) {
         log.warn "activateAlarm: false alarm"
@@ -1448,7 +1449,7 @@ def activateAlarm() {
 
         // Only turn on those switches that are currently off
         def switchesOn = settings.switches?.findAll { it?.currentSwitch == "off" }
-        TRACE("switchesOn: ${switchesOn}")
+        LOG("switchesOn: ${switchesOn}")
         if (switchesOn) {
             switchesOn*.on()
             state.offSwitches = switchesOn.collect { it.id }
@@ -1480,7 +1481,7 @@ def activateAlarm() {
 }
 
 private def notify(msg) {
-    TRACE("notify(${msg})")
+    LOG("notify(${msg})")
     if (state.alarm) {
         // Alarm notification
         if (settings.pushMessage) {
@@ -1539,7 +1540,7 @@ private def notify(msg) {
 }
 
 private def notifyVoice() {
-    TRACE("notifyVoice()")
+    LOG("notifyVoice()")
 
     if (!settings.speechSynth || state._init_) {
         return
@@ -1572,7 +1573,7 @@ private def notifyVoice() {
 }
 
 private def getStatusPhrase() {
-    TRACE("getStatusPhrase()")
+    LOG("getStatusPhrase()")
 
     def phrase = ""
     if (state.alarm) {
@@ -1641,13 +1642,13 @@ private def getDeviceById(id) {
 }
 
 private def myRunIn(delay_s, func) {
-    TRACE("myRunIn(${delay_s})")
+    LOG("myRunIn(${delay_s})")
 
     if (delay_s > 0) {
         def tms = now() + (delay_s * 1000)
         def date = new Date(tms)
         runOnce(date, func)
-        TRACE("'${func}' scheduled to run at ${date}")
+        LOG("'${func}' scheduled to run at ${date}")
     }
 }
 
@@ -1671,11 +1672,11 @@ private def createNetworkId() {
 }
 
 private def buildNumber() {
-    return 150127
+    return 150131
 }
 
 private def textVersion() {
-    def text = "Version 2.3.0 (01/27/2015)"
+    def text = "Version 2.3.0 (01/31/2015)"
 }
 
 private def textCopyright() {
@@ -1696,11 +1697,10 @@ private def textLicense() {
         "along with this program. If not, see <http://www.gnu.org/licenses/>."
 }
 
-private def TRACE(message) {
+private def LOG(message) {
     log.trace message
 }
 
 private def STATE() {
-    log.trace "settings: ${settings}"
     log.trace "state: ${state}"
 }
