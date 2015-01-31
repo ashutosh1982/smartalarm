@@ -79,6 +79,7 @@ preferences {
     page name:"pageSetup"
     page name:"pageAbout"
     page name:"pageSelectZones"
+    page name:"pageConfigureZones"
     page name:"pageZoneSettings"
     page name:"pageAlarmSettings"
     page name:"pageNotifications"
@@ -99,10 +100,10 @@ def pageSetup() {
 
     def alarmStatus
     if (state.armed) {
-        alarmStatus = "armed "
-        alarmStatus += state.stay ? "Stay" : "Away"
+        alarmStatus = "ARMED "
+        alarmStatus += state.stay ? "STAY" : "AWAY"
     } else {
-        alarmStatus = "disarmed"
+        alarmStatus = "DISARMED"
     }
 
     def pageProperties = [
@@ -123,6 +124,7 @@ def pageSetup() {
         section("Setup Menu") {
             href "pageAlarmSettings", title:"Smart Alarm Settings", description:"Tap to open"
             href "pageSelectZones", title:"Add/Remove Zones", description:"Tap to open"
+            href "pageConfigureZones", title:"Configure Zones", description:"Tap to open"
             href "pageZoneSettings", title:"Zone Settings", description:"Tap to open"
             href "pageNotifications", title:"Notification Options", description:"Tap to open"
             href "pageVoiceOptions", title:"Voice Notification Options", description:"Tap to open"
@@ -215,7 +217,7 @@ def pageZoneStatus() {
 
 // Show "Add/Remove Zones" page
 def pageSelectZones() {
-    LOG("pageZoneSettings()")
+    LOG("pageSelectZones()")
 
     def helpPage =
         "A security zone is an area or your property protected by one of " +
@@ -234,6 +236,14 @@ def pageSelectZones() {
         name:       "z_motion",
         type:       "capability.motionSensor",
         title:      "Which motion sensors?",
+        multiple:   true,
+        required:   false
+    ]
+
+    def inputMovement = [
+        name:       "z_movement",
+        type:       "capability.accelerationSensor",
+        title:      "Which movement sensors?",
         multiple:   true,
         required:   false
     ]
@@ -266,8 +276,94 @@ def pageSelectZones() {
             paragraph helpPage
             input inputContact
             input inputMotion
+            input inputMovement
             input inputSmoke
             input inputMoisture
+        }
+    }
+}
+
+// Show "Configure Zones" page
+def pageConfigureZones() {
+    LOG("pageConfigureZones()")
+
+    def helpPage =
+        "Each security zone can be configured as Exterior, Interior, " +
+        "Entrance, Alert or Bypass.\n\n" +
+        "Exterior zones are armed in both Away and Stay modes, while " +
+        "Interior zones are armed only in Away mode, allowing you to move " +
+        "freely inside the premises while the alarm is armed in Stay " +
+        "mode.\n\n" +
+        "Entrance zones allow you to enter and exit premises while the " +
+        "alarm is armed without setting if off. Both entry and exit delays " +
+        "are configurable.\n\n" +
+        "Alert zones are always armed and are typically used for smoke and " +
+        "flood alarms.\n\n" +
+        "Bypass zones are never armed. This allows you to temporarily " +
+        "exclude a zone from your security system."
+
+    def zoneTypes = ["exterior", "interior", "entrance", "alert", "bypass"]
+
+    def pageProperties = [
+        name:       "pageConfigureZones",
+        title:      "Configure Zones",
+        nextPage:   "pageSetup",
+        uninstall:  state.installed
+    ]
+
+    return dynamicPage(pageProperties) {
+        section {
+            paragraph helpPage
+        }
+
+        if (settings.z_contact?.size()) {
+            section("Contact Sensors", hideable:true, hidden:false) {
+                settings.z_contact.each() {
+                    input "type_${it.id}", "enum", title:it.displayName,
+                        metadata: [values: zoneTypes],
+                        defaultValue:"exterior", required:true
+                }
+            }
+        }
+
+        if (settings.z_motion?.size()) {
+            section("Motion Sensors", hideable:true, hidden:false) {
+                settings.z_motion.each() {
+                    input "type_${it.id}", "enum", title:it.displayName,
+                        metadata: [values: zoneTypes],
+                        defaultValue:"interior", required:true
+                }
+            }
+        }
+
+        if (settings.z_movement?.size()) {
+            section("Movement Sensors", hideable:true, hidden:false) {
+                settings.z_movement.each() {
+                    input "type_${it.id}", "enum", title:it.displayName,
+                        metadata: [values: zoneTypes],
+                        defaultValue:"interior", required:true
+                }
+            }
+        }
+
+        if (settings.z_smoke?.size()) {
+            section("Smoke & CO Sensors", hideable:true, hidden:false) {
+                settings.z_smoke.each() {
+                    input "$type_{it.id}", "enum", title:it.displayName,
+                        metadata: [values: zoneTypes],
+                        defaultValue:"alert", required:true
+                }
+            }
+        }
+
+        if (settings.z_water?.size()) {
+            section("Moisture Sensors", hideable:true, hidden:false) {
+                settings.z_water.each() {
+                    input "type_${it.id}", "enum", title:it.displayName,
+                        metadata: [values: zoneTypes],
+                        defaultValue:"alert", required:true
+                }
+            }
         }
     }
 }
@@ -787,36 +883,32 @@ def pageRemoteControl() {
 
     def inputArmAway = [
         name:           "buttonArmAway",
-        type:           "enum",
+        type:           "number",
         title:          "Which button to Arm Away?",
-        metadata:       [values:["1","2","3","4"]],
         defaultValue:   "1",
         required:       false
     ]
 
     def inputArmStay = [
         name:           "buttonArmStay",
-        type:           "enum",
+        type:           "number",
         title:          "Which button to Arm Stay?",
-        metadata:       [values:["1","2","3","4"]],
         defaultValue:   "2",
         required:       false
     ]
 
     def inputDisarm = [
         name:           "buttonDisarm",
-        type:           "enum",
+        type:           "number",
         title:          "Which button to Disarm?",
-        metadata:       [values:["1","2","3","4"]],
         defaultValue:   "3",
         required:       false
     ]
 
     def inputPanic = [
         name:           "buttonPanic",
-        type:           "enum",
+        type:           "number",
         title:          "Which button to Panic?",
-        metadata:       [values:["1","2","3","4"]],
         defaultValue:   "4",
         required:       false
     ]
@@ -841,7 +933,7 @@ def pageRemoteControl() {
     }
 }
 
-// Show "Control Panel Options" page
+// Show "REST API Options" page
 def pageRestApiOptions() {
     LOG("pageRestApiOptions()")
 
