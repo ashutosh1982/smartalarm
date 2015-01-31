@@ -80,8 +80,7 @@ preferences {
     page name:"pageAbout"
     page name:"pageSelectZones"
     page name:"pageConfigureZones"
-    page name:"pageZoneSettings"
-    page name:"pageAlarmSettings"
+    page name:"pageAlarmOptions"
     page name:"pageNotifications"
     page name:"pageVoiceOptions"
     page name:"pageZoneStatus"
@@ -122,10 +121,9 @@ def pageSetup() {
             }
         }
         section("Setup Menu") {
-            href "pageAlarmSettings", title:"Smart Alarm Settings", description:"Tap to open"
             href "pageSelectZones", title:"Add/Remove Zones", description:"Tap to open"
             href "pageConfigureZones", title:"Configure Zones", description:"Tap to open"
-            href "pageZoneSettings", title:"Zone Settings", description:"Tap to open"
+            href "pageAlarmOptions", title:"Alarm Options", description:"Tap to open"
             href "pageNotifications", title:"Notification Options", description:"Tap to open"
             href "pageVoiceOptions", title:"Voice Notification Options", description:"Tap to open"
             href "pageRemoteControl", title:"Remote Control Settings", description:"Tap to open"
@@ -188,24 +186,12 @@ def pageZoneStatus() {
     return dynamicPage(pageProperties) {
         state.zones.each() {
             def device = getDeviceById(it.deviceId)
-            def zoneStatus = "${it.sensorType}, "
+            def zoneStatus = "${it.sensorType}, ${it.zoneType}, "
 
-            if (it.alert) {
-                zoneStatus += "alert"
-            } else if (it.interior) {
-                zoneStatus += "interior"
-            } else if (it.entrance) {
-                zoneStatus += "entrance"
+            if (it.armed) {
+                zoneStatus += "armed"
             } else {
-                zoneStatus += "exterior"
-            }
-
-            if (it.bypass) {
-                zoneStatus += ", bypassed"
-            } else if (it.armed) {
-                zoneStatus += ", armed"
-            } else {
-                zoneStatus += ", disarmed"
+                zoneStatus += "disarmed"
             }
 
             section(device.displayName) {
@@ -316,7 +302,7 @@ def pageConfigureZones() {
             paragraph helpPage
         }
 
-        if (settings.z_contact?.size()) {
+        if (settings.z_contact) {
             section("Contact Sensors", hideable:true, hidden:false) {
                 settings.z_contact.each() {
                     input "type_${it.id}", "enum", title:it.displayName,
@@ -326,7 +312,7 @@ def pageConfigureZones() {
             }
         }
 
-        if (settings.z_motion?.size()) {
+        if (settings.z_motion) {
             section("Motion Sensors", hideable:true, hidden:false) {
                 settings.z_motion.each() {
                     input "type_${it.id}", "enum", title:it.displayName,
@@ -336,7 +322,7 @@ def pageConfigureZones() {
             }
         }
 
-        if (settings.z_movement?.size()) {
+        if (settings.z_movement) {
             section("Movement Sensors", hideable:true, hidden:false) {
                 settings.z_movement.each() {
                     input "type_${it.id}", "enum", title:it.displayName,
@@ -346,7 +332,7 @@ def pageConfigureZones() {
             }
         }
 
-        if (settings.z_smoke?.size()) {
+        if (settings.z_smoke) {
             section("Smoke & CO Sensors", hideable:true, hidden:false) {
                 settings.z_smoke.each() {
                     input "$type_{it.id}", "enum", title:it.displayName,
@@ -356,7 +342,7 @@ def pageConfigureZones() {
             }
         }
 
-        if (settings.z_water?.size()) {
+        if (settings.z_water) {
             section("Moisture Sensors", hideable:true, hidden:false) {
                 settings.z_water.each() {
                     input "type_${it.id}", "enum", title:it.displayName,
@@ -368,101 +354,9 @@ def pageConfigureZones() {
     }
 }
 
-// Show "Zone Settings" page
-def pageZoneSettings() {
-    LOG("pageZoneSettings()")
-
-    def helpPage =
-        "Each zone can be designated as Exterior (default), Interior, " +
-        "Entrance or Alert zone."
-
-    def helpInteriorZones =
-        "Zones designated as Interior will not be armed in Stay mode, " +
-        "allowing you to freely move inside the premises while the alarm " +
-        "is armed."
-
-    def helpEntranceZones =
-        "If a zone is designated as Entrance, then alarm will not sound " +
-        "for a specified number of seconds, allowing you to disarm the " +
-        "alarm after entering the premises."
-
-    def helpAlertZones =
-        "Zones designated as Alert are always armed and are typically used " +
-        "for smoke and flood alarms."
-
-    def helpBypassZones =
-        "You can prevent a zone from setting off an alarm by enabling zone " +
-        "'bypass'. Bypassed zones will not be armed."
-
-    def inputEntranceZones = [
-        name:           "entranceZones",
-        type:           "enum",
-        title:          "Select entrance zones",
-        metadata:       [values: getZoneNames()],
-        multiple:       true,
-        required:       false
-    ]
-
-    def inputInteriorZones = [
-        name:           "interiorZones",
-        type:           "enum",
-        title:          "Select interior zones",
-        metadata:       [values: getZoneNames()],
-        multiple:       true,
-        required:       false
-    ]
-
-    def inputAlertZones = [
-        name:           "alertZones",
-        type:           "enum",
-        title:          "Select alert zones",
-        metadata:       [values: getZoneNames()],
-        multiple:       true,
-        required:       false
-    ]
-
-    def inputBypassZones = [
-        name:           "bypassZones",
-        type:           "enum",
-        title:          "Bypass selected zones",
-        metadata:       [values: getZoneNames()],
-        multiple:       true,
-        required:       false
-    ]
-
-    def pageProperties = [
-        name:       "pageZoneSettings",
-        title:      "Zone Settings",
-        nextPage:   "pageSetup",
-        uninstall:  state.installed
-    ]
-
-    return dynamicPage(pageProperties) {
-        section {
-            paragraph helpPage
-        }
-        section("Interior Zones") {
-            paragraph helpInteriorZones
-            input inputInteriorZones
-        }
-        section("Entrance Zones") {
-            paragraph helpEntranceZones
-            input inputEntranceZones
-        }
-        section("Alert Zones") {
-            paragraph helpAlertZones
-            input inputAlertZones
-        }
-        section("Bypass Zones") {
-            paragraph helpBypassZones
-            input inputBypassZones
-        }
-    }
-}
-
 // Show "Smart Alarm Settings" page
-def pageAlarmSettings() {
-    LOG("pageAlarmSettings()")
+def pageAlarmOptions() {
+    LOG("pageAlarmOptions()")
 
     def helpArming =
         "Smart Alarm can be armed and disarmed by simply setting the home " +
@@ -579,8 +473,8 @@ def pageAlarmSettings() {
     ]
 
     def pageProperties = [
-        name:       "pageAlarmSettings",
-        title:      "Smart Alarm Settings",
+        name:       "pageAlarmOptions",
+        title:      "Alarm Options",
         nextPage:   "pageSetup",
         uninstall:  state.installed
     ]
@@ -1156,58 +1050,52 @@ private def initZones() {
 
     if (settings.z_contact) {
         settings.z_contact.each() {
-            String zoneName = "contact: ${it.displayName}"
-            def zone = [
+            state.zones << [
                 deviceId:   it.id,
                 sensorType: "contact",
-                alert:      settings.alertZones?.contains(zoneName) ?: false,
-                entrance:   settings.entranceZones?.contains(zoneName) ?: false,
-                interior:   settings.interiorZones?.contains(zoneName) ?: false,
-                bypass:     settings.bypassZones?.contains(zoneName) ?: false,
+                zoneType:   settings["type_${it.id}"] ?: "exterior",
                 armed:      false,
                 alarm:      null
             ]
-
-            state.zones << zone
         }
         subscribe(settings.z_contact, "contact.open", onContact)
     }
 
     if (settings.z_motion) {
         settings.z_motion.each() {
-            String zoneName = "motion: ${it.displayName}"
-            def zone = [
+            state.zones << [
                 deviceId:   it.id,
                 sensorType: "motion",
-                alert:      settings.alertZones?.contains(zoneName) ?: false,
-                entrance:   settings.entranceZones?.contains(zoneName) ?: false,
-                interior:   settings.interiorZones?.contains(zoneName) ?: false,
-                bypass:     settings.bypassZones?.contains(zoneName) ?: false,
+                zoneType:   settings["type_${it.id}"] ?: "interior",
                 armed:      false,
                 alarm:      null
             ]
-
-            state.zones << zone
         }
         subscribe(settings.z_motion, "motion.active", onMotion)
     }
 
-    if (settings.z_smoke) {
-        settings.z_smoke.each() {
-            String zoneName = "smoke: ${it.displayName}"
-            LOG("zoneName: ${zoneName}")
-            def zone = [
+    if (settings.z_movement) {
+        settings.z_movement.each() {
+            state.zones << [
                 deviceId:   it.id,
-                sensorType: "smoke",
-                alert:      settings.alertZones?.contains(zoneName) ?: false,
-                entrance:   settings.entranceZones?.contains(zoneName) ?: false,
-                interior:   settings.interiorZones?.contains(zoneName) ?: false,
-                bypass:     settings.bypassZones?.contains(zoneName) ?: false,
+                sensorType: "movement",
+                zoneType:   settings["type_${it.id}"] ?: "interior",
                 armed:      false,
                 alarm:      null
             ]
+        }
+        subscribe(settings.z_movement, "acceleration.active", onMovement)
+    }
 
-            state.zones << zone
+    if (settings.z_smoke) {
+        settings.z_smoke.each() {
+            state.zones << [
+                deviceId:   it.id,
+                sensorType: "smoke",
+                zoneType:   settings["type_${it.id}"] ?: "alert",
+                armed:      false,
+                alarm:      null
+            ]
         }
         subscribe(settings.z_smoke, "smoke.detected", onSmoke)
         subscribe(settings.z_smoke, "smoke.tested", onSmoke)
@@ -1217,20 +1105,13 @@ private def initZones() {
 
     if (settings.z_water) {
         settings.z_water.each() {
-            String zoneName = "water: ${it.displayName}"
-            LOG("zoneName: ${zoneName}")
-            def zone = [
+            state.zones << [
                 deviceId:   it.id,
                 sensorType: "water",
-                alert:      settings.alertZones?.contains(zoneName) ?: false,
-                entrance:   settings.entranceZones?.contains(zoneName) ?: false,
-                interior:   settings.interiorZones?.contains(zoneName) ?: false,
-                bypass:     settings.bypassZones?.contains(zoneName) ?: false,
+                zoneType:   settings["type_${it.id}"] ?: "alert",
                 armed:      false,
                 alarm:      null
             ]
-
-            state.zones << zone
         }
         subscribe(settings.z_water, "water.wet", onWater)
     }
@@ -1276,22 +1157,31 @@ def resetPanel() {
         state.offSwitches = []
     }
 
-    state.alarm = false
+    atomicState.alarm = false
 
     // Reset zones
-    state.zones.each() {
+    atomicState.zones.each() {
         it.alarm = null
 
-        if (it.bypass) {
-            it.armed = false
-        } else if (it.alert) {
+        switch (it.zoneType) {
+        case "alert":
             it.armed = true
-        } else if (it.interior) {
-            it.armed = state.armed && !state.stay
-        } else if (it.entrance) {
-            it.armed = state.armed && (state.stay || state.exitDelay == 0)
-        } else {
+            break
+
+        case "exterior":
             it.armed = state.armed
+            break
+
+        case "interior":
+            it.armed = state.armed && !state.stay
+            break
+
+        case "entrance":
+            it.armed = state.armed && (state.stay || state.exitDelay == 0)
+            break
+
+        default:
+            it.armed = false
         }
     }
 
@@ -1331,22 +1221,21 @@ private def onZoneEvent(evt, sensorType) {
 
     zone.alarm = evt.displayName
 
-    if (state.alarm) {
-        // already in alarm state
-        return
-    }
-
-    // Activate alarm
-    state.alarm = true
-    if (zone.entrance && state.entryDelay && !(state.stay && settings.entryDelayDisable)) {
-        myRunIn(state.entryDelay, activateAlarm)
-    } else {
-        activateAlarm()
+    if (!state.alarm) {
+        // Activate alarm
+        atomicState.alarm = true
+        if (zoneType == "entrance" && state.entryDelay &&
+            !(state.stay && settings.entryDelayDisable)) {
+            myRunIn(state.entryDelay, activateAlarm)
+        } else {
+            activateAlarm()
+        }
     }
 }
 
 def onContact(evt)  { onZoneEvent(evt, "contact") }
 def onMotion(evt)   { onZoneEvent(evt, "motion") }
+def onMovement(evt) { onZoneEvent(evt, "movement") }
 def onSmoke(evt)    { onZoneEvent(evt, "smoke") }
 def onWater(evt)    { onZoneEvent(evt, "water") }
 
@@ -1386,42 +1275,45 @@ def onButtonPushed(evt) {
 def armAway() {
     LOG("armAway()")
 
-    if (state.armed && !state.stay) {
-        return
+    if (!state.armed || state.stay) {
+        atomicState.armed = true
+        atomicState.stay = false
+        resetPanel()
     }
-
-    state.armed = true
-    state.stay = false
-    resetPanel()
 }
 
 def armStay() {
     LOG("armStay()")
 
-    if (state.armed && state.stay) {
-        return
+    if (!state.armed || !state.stay) {
+        atomicState.armed = true
+        atomicState.stay = true
+        resetPanel()
     }
-
-    state.armed = true
-    state.stay = true
-    resetPanel()
 }
 
 def disarm() {
     LOG("disarm()")
 
     if (state.armed) {
-        state.armed = false
+        atomicState.armed = false
         resetPanel()
     }
+}
+
+def panic() {
+    LOG("panic()")
+
+    atomicState.alarm = true;
+    activateAlarm()
 }
 
 def armEntranceZones() {
     LOG("armEntranceZones()")
 
     if (state.armed) {
-        state.zones.each() {
-            if (it.entrance && !it.bypass) {
+        atomicState.zones.each() {
+            if (it.zoneType == "entrance") {
                 it.armed = true
             }
         }
@@ -1429,13 +1321,6 @@ def armEntranceZones() {
         log.info msg
         notify(msg)
     }
-}
-
-def panic() {
-    LOG("panic()")
-
-    state.alarm = true;
-    activateAlarm()
 }
 
 // .../armaway REST API endpoint
