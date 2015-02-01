@@ -184,18 +184,68 @@ def pageZoneStatus() {
     ]
 
     return dynamicPage(pageProperties) {
-        state.zones.each() {
-            def device = getDeviceById(it.deviceId)
-            def zoneStatus = "${it.sensorType}, ${it.zoneType}, "
-
-            if (it.armed) {
-                zoneStatus += "armed"
-            } else {
-                zoneStatus += "disarmed"
+        if (settings.z_contact) {
+            section("Contact Sensors", hideable:true, hidden:false) {
+                settings.z_contact.each() {
+                    def zone = getZoneForDevice(it.id, "contact")
+                    if (zone) {
+                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                    } else {
+                        paragraph "Zone '${it.displayName}' not found"
+                    }
+                }
             }
+        }
 
-            section(device.displayName) {
-                paragraph zoneStatus
+        if (settings.z_motion) {
+            section("Motion Sensors", hideable:true, hidden:false) {
+                settings.z_motion.each() {
+                    def zone = getZoneForDevice(it.id, "motion")
+                    if (zone) {
+                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                    } else {
+                        paragraph "Zone '${it.displayName}' not found"
+                    }
+                }
+            }
+        }
+
+        if (settings.z_movement) {
+            section("Movement Sensors", hideable:true, hidden:false) {
+                settings.z_movement.each() {
+                    def zone = getZoneForDevice(it.id, "movement")
+                    if (zone) {
+                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                    } else {
+                        paragraph "Zone '${it.displayName}' not found"
+                    }
+                }
+            }
+        }
+
+        if (settings.z_smoke) {
+            section("Smoke & CO Sensors", hideable:true, hidden:false) {
+                settings.z_smoke.each() {
+                    def zone = getZoneForDevice(it.id, "smoke")
+                    if (zone) {
+                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                    } else {
+                        paragraph "Zone '${it.displayName}' not found"
+                    }
+                }
+            }
+        }
+
+        if (settings.z_water) {
+            section("Moisture Sensors", hideable:true, hidden:false) {
+                settings.z_water.each() {
+                    def zone = getZoneForDevice(it.id, "water")
+                    if (zone) {
+                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                    } else {
+                        paragraph "Zone '${it.displayName}' not found"
+                    }
+                }
             }
         }
     }
@@ -206,9 +256,9 @@ def pageSelectZones() {
     LOG("pageSelectZones()")
 
     def helpPage =
-        "A security zone is an area or your property protected by one of " +
-        "the available sensors (contact, motion, moisture or smoke). When " +
-        "the zone is armed, activating the sensor will set off an alarm."
+        "A security zone is an area of your property protected by one of " +
+        "the available sensors (contact, motion, movement, moisture or " +
+        "smoke)."
 
     def inputContact = [
         name:       "z_contact",
@@ -237,7 +287,7 @@ def pageSelectZones() {
     def inputSmoke = [
         name:       "z_smoke",
         type:       "capability.smokeDetector",
-        title:      "Which smoke sensors?",
+        title:      "Which smoke & CO sensors?",
         multiple:   true,
         required:   false
     ]
@@ -1578,22 +1628,15 @@ private def getHelloHomeActions() {
     return actions.sort()
 }
 
-private def getZoneNames() {
-    def zoneNames = []
-    for (dev in settings.z_contact) {
-        zoneNames << "contact: ${dev.displayName}"
-    }
-    for (dev in settings.z_motion) {
-        zoneNames << "motion: ${dev.displayName}"
-    }
-    for (dev in settings.z_smoke) {
-        zoneNames << "smoke: ${dev.displayName}"
-    }
-    for (dev in settings.z_water) {
-        zoneNames << "water: ${dev.displayName}"
+private def getZoneStatus(zone) {
+    def str = "${zone.zoneType}, "
+    if (zone.armed) {
+        str += "armed"
+    } else {
+        str += "disarmed"
     }
 
-    return zoneNames.sort()
+    return str
 }
 
 private def getZoneForDevice(id, sensorType) {
@@ -1602,18 +1645,26 @@ private def getZoneForDevice(id, sensorType) {
 
 private def getDeviceById(id) {
     def device = settings.z_contact?.find() { it.id == id }
-
-    if (!device) {
-        device = settings.z_motion?.find() { it.id == id }
+    if (device) {
+        return device
     }
 
-    if (!device) {
-        device = settings.z_smoke?.find() { it.id == id }
+    device = settings.z_motion?.find() { it.id == id }
+    if (device) {
+        return device
     }
 
-    if (!device) {
-        device = settings.z_water?.find() { it.id == id }
+    device = settings.z_movement?.find() { it.id == id }
+    if (device) {
+        return device
     }
+
+    device = settings.z_smoke?.find() { it.id == id }
+    if (device) {
+        return device
+    }
+
+    device = settings.z_water?.find() { it.id == id }
 
     return device
 }
