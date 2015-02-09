@@ -5,7 +5,7 @@
  *  Please visit <http://statusbits.github.io/smartalarm/> for more
  *  information.
  *
- *  Version 2.3.0 (01/31/2015)
+ *  Version 2.3.0 (2/9/2015)
  *
  *  The latest version of this file can be found on GitHub at:
  *  <https://github.com/statusbits/smartalarm/blob/master/SmartAlarm.groovy>
@@ -41,6 +41,19 @@ definition(
     oauth: [displayName:"Smart Alarm", displayLink:"https://github.com/statusbits/smartalarm/"]
 )
 
+preferences {
+    page name:"pageSetup"
+    page name:"pageAbout"
+    page name:"pageSelectZones"
+    page name:"pageConfigureZones"
+    page name:"pageAlarmOptions"
+    page name:"pageNotifications"
+    page name:"pageVoiceOptions"
+    page name:"pageZoneStatus"
+    page name:"pageRemoteControl"
+    page name:"pageRestApiOptions"
+}
+
 mappings {
     path("/armaway") {
         action: [ GET: "apiArmAway" ]
@@ -73,19 +86,6 @@ mappings {
     path("/status") {
         action: [ GET: "apiStatus" ]
     }
-}
-
-preferences {
-    page name:"pageSetup"
-    page name:"pageAbout"
-    page name:"pageSelectZones"
-    page name:"pageConfigureZones"
-    page name:"pageAlarmOptions"
-    page name:"pageNotifications"
-    page name:"pageVoiceOptions"
-    page name:"pageZoneStatus"
-    page name:"pageRemoteControl"
-    page name:"pageRestApiOptions"
 }
 
 // Show setup page
@@ -126,7 +126,7 @@ def pageSetup() {
             href "pageAlarmOptions", title:"Alarm Options", description:"Tap to open"
             href "pageNotifications", title:"Notification Options", description:"Tap to open"
             href "pageVoiceOptions", title:"Voice Notification Options", description:"Tap to open"
-            href "pageRemoteControl", title:"Remote Control Settings", description:"Tap to open"
+            href "pageRemoteControl", title:"Configure Remote Control", description:"Tap to open"
             href "pageRestApiOptions", title:"REST API Options", description:"Tap to open"
             href "pageAbout", title:"About Smart Alarm", description:"Tap to open"
         }
@@ -809,7 +809,7 @@ def pageVoiceOptions() {
     }
 }
 
-// Show "Remote Control Options" page
+// Show "Configure Remote Control" page
 def pageRemoteControl() {
     LOG("pageRemoteControl()")
 
@@ -828,38 +828,66 @@ def pageRemoteControl() {
     def inputArmAway = [
         name:           "buttonArmAway",
         type:           "number",
-        title:          "Which button to Arm Away?",
-        defaultValue:   "1",
+        title:          "Which button?",
         required:       false
+    ]
+
+    def inputHoldArmAway = [
+        name:           "holdArmAway",
+        type:           "bool",
+        title:          "Use button 'Hold' action",
+        defaultValue:   false,
+        required:       true
     ]
 
     def inputArmStay = [
         name:           "buttonArmStay",
         type:           "number",
-        title:          "Which button to Arm Stay?",
-        defaultValue:   "2",
+        title:          "Which button?",
         required:       false
+    ]
+
+    def inputHoldArmStay = [
+        name:           "holdArmStay",
+        type:           "bool",
+        title:          "Use button 'Hold' action",
+        defaultValue:   false,
+        required:       true
     ]
 
     def inputDisarm = [
         name:           "buttonDisarm",
         type:           "number",
-        title:          "Which button to Disarm?",
-        defaultValue:   "3",
+        title:          "Which button?",
         required:       false
+    ]
+
+    def inputHoldDisarm = [
+        name:           "holdDisarm",
+        type:           "bool",
+        title:          "Use button 'Hold' action",
+        defaultValue:   false,
+        required:       true
     ]
 
     def inputPanic = [
         name:           "buttonPanic",
         type:           "number",
-        title:          "Which button to Panic?",
-        defaultValue:   "4",
+        title:          "Which button?",
         required:       false
+    ]
+
+    def inputHoldPanic = [
+        name:           "holdPanic",
+        type:           "bool",
+        title:          "Use button 'Hold' action",
+        defaultValue:   false,
+        required:       true
     ]
 
     def pageProperties = [
         name:       "pageRemoteControl",
-        title:      "Remote Control Settings",
+        title:      "Configure Remote Control",
         nextPage:   "pageSetup",
         install:    false,
         uninstall:  false
@@ -869,10 +897,26 @@ def pageRemoteControl() {
         section {
             paragraph textHelp
             input inputButtons
+        }
+
+        section("Arm Away Button") {
             input inputArmAway
+            input inputHoldArmAway
+        }
+
+        section("Arm Stay Button") {
             input inputArmStay
+            input inputHoldArmStay
+        }
+
+        section("Disarm Button") {
             input inputDisarm
+            input inputHoldDisarm
+        }
+
+        section("Panic Button") {
             input inputPanic
+            input inputHoldPanic
         }
     }
 }
@@ -1700,11 +1744,11 @@ private def createNetworkId() {
 }
 
 private def buildNumber() {
-    return 150131
+    return 150209
 }
 
 private def textVersion() {
-    def text = "Version 2.3.0 (01/31/2015)"
+    def text = "Version 2.3.0 (2/9/2015)"
 }
 
 private def textCopyright() {
