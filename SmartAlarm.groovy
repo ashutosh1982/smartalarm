@@ -1214,22 +1214,35 @@ private def initZones() {
 private def initButtons() {
     LOG("initButtons()")
 
-    state.buttonActions = [:]
+    state.buttonActions = []
     if (settings.buttons) {
         if (settings.buttonArmAway) {
-            state.buttonActions[settings.buttonArmAway] = "armAway"
-        }
-        if (settings.buttonArmStay) {
-            state.buttonActions[settings.buttonArmStay] = "armStay"
-        }
-        if (settings.buttonDisarm) {
-            state.buttonActions[settings.buttonDisarm] = "disarm"
-        }
-        if (settings.buttonPanic) {
-            state.buttonActions[settings.buttonPanic] = "panic"
+            def button = settings.buttonArmAway.toInteger()
+            def event = settings.holdArmAway ? "held" : "pushed"
+            state.buttonActions.add([button:button, event:event, action:"armAway"])
         }
 
-        subscribe(settings.buttons, "button.pushed", onButtonPushed)
+        if (settings.buttonArmStay) {
+            def button = settings.buttonArmStay.toInteger()
+            def event = settings.holdArmStay ? "held" : "pushed"
+            state.buttonActions.add([button:button, event:event, action:"armStay"])
+        }
+
+        if (settings.buttonDisarm) {
+            def button = settings.buttonDisarm.toInteger()
+            def event = settings.holdDisarm ? "held" : "pushed"
+            state.buttonActions.add([button:button, event:event, action:"disarm"])
+        }
+
+        if (settings.buttonPanic) {
+            def button = settings.buttonPanic.toInteger()
+            def event = settings.holdPanic ? "held" : "pushed"
+            state.buttonActions.add([button:button, event:event, action:"panic"])
+        }
+
+        if (state.buttonActions) {
+            subscribe(settings.buttons, "button", onButtonEvent)
+        }
     }
 }
 
@@ -1346,22 +1359,25 @@ def onLocation(evt) {
     }
 }
 
-def onButtonPushed(evt) {
-    LOG("onButtonPushed(${evt.displayName})")
+def onButtonEvent(evt) {
+    LOG("onButtonEvent(${evt.displayName})")
 
-    if (!evt.data) {
+    if (!state.buttonActions || !evt.data) {
         return
     }
 
     def slurper = new JsonSlurper()
     def data = slurper.parseText(evt.data)
-    def button = data.buttonNumber
+    def button = data.buttonNumber?.toInteger()
     if (button) {
-        LOG("Button '${button}' was pushed.")
-        def action = state.buttonActions["${button}"]
-        if (action) {
-            LOG("Executing button action ${action}()")
-            "${action}"()
+        LOG("Button '${button}' was ${evt.value}.")
+        def item = state.buttonActions.find {
+            it.button == button && it.event == evt.value
+        }
+
+        if (item) {
+            LOG("Executing '${item.action}' button action")
+            "${item.action}"()
         }
     }
 }
