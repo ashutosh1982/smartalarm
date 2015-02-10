@@ -189,7 +189,7 @@ def pageZoneStatus() {
                 settings.z_contact.each() {
                     def zone = getZoneForDevice(it.id, "contact")
                     if (zone) {
-                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
                     } else {
                         paragraph "Zone '${it.displayName}' not found"
                     }
@@ -202,7 +202,7 @@ def pageZoneStatus() {
                 settings.z_motion.each() {
                     def zone = getZoneForDevice(it.id, "motion")
                     if (zone) {
-                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
                     } else {
                         paragraph "Zone '${it.displayName}' not found"
                     }
@@ -215,7 +215,7 @@ def pageZoneStatus() {
                 settings.z_movement.each() {
                     def zone = getZoneForDevice(it.id, "movement")
                     if (zone) {
-                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
                     } else {
                         paragraph "Zone '${it.displayName}' not found"
                     }
@@ -228,7 +228,7 @@ def pageZoneStatus() {
                 settings.z_smoke.each() {
                     def zone = getZoneForDevice(it.id, "smoke")
                     if (zone) {
-                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
                     } else {
                         paragraph "Zone '${it.displayName}' not found"
                     }
@@ -241,7 +241,7 @@ def pageZoneStatus() {
                 settings.z_water.each() {
                     def zone = getZoneForDevice(it.id, "water")
                     if (zone) {
-                        paragraph "${it.displayName}\n\n" + getZoneStatus(zone)
+                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
                     } else {
                         paragraph "Zone '${it.displayName}' not found"
                     }
@@ -1007,7 +1007,7 @@ private def setupInit() {
     if (state.installed == null) {
         state.installed = false
         state.armed = false
-        state.alarm = false
+        state.alarm = null
         state.zones = []
     }
 }
@@ -1049,19 +1049,13 @@ private def initControlPanel() {
     if (state.controlPanel) {
         def cp = getChildDevice(state.controlPanel)
         if (!cp) {
-            log.error "Control panel not found"
+            log.warn "Control panel not found"
             state.controlPanel = null
         }
     }
 
     if (state.controlPanel == null) {
-        def dni = createControlPanel(app.name)
-        if (dni) {
-            state.controlPanel = dni
-            log.info "Created control panel. DNI: ${dni}"
-        } else {
-            log.error "Cannot create control panel."
-        }
+        state.controlPanel = createControlPanel(app.name)
     }
 }
 
@@ -1078,9 +1072,11 @@ private def createControlPanel(name) {
 
     try {
         def dev = addChildDevice("statusbits", devFile, dni, null, devParams)
+        log.info "Created control panel. DNI: ${dev.deviceNetworkId}"
     } catch (e) {
+        dni = null
+        log.error "Cannot create control panel."
         log.error e
-        return null
     }
 
     return dni
@@ -1095,20 +1091,14 @@ private def updateControlPanel() {
 
     def cp = getChildDevice(state.controlPanel)
     if (!cp) {
-        log.error "Control panel not found"
+        log.warn "Control panel not found"
         state.controlPanel = null
         return
     }
 
     if (state.alarm) {
-        state.zones.each() {
-            if (it.alarm) {
-                cp.parse("status: alarm, zone: ${it.alarm}")
-                return
-            }
-        }
-
-        cp.parse("status: alarm, zone: panic")
+        cp.parse("status: alarm, zone: ${state.alarm}")
+        return
     }
 
     if (state.armed) {
@@ -1117,24 +1107,6 @@ private def updateControlPanel() {
     } else {
         cp.parse("status: disarmed")
     }
-}
-
-private def initRestApi() {
-    if (settings.restApiEnabled) {
-        if (!state.accessToken) {
-            def token = createAccessToken()
-            LOG("Created new access token: ${token})")
-        }
-        state.url = "https://graph.api.smartthings.com/api/smartapps/installations/${app.id}/"
-        log.info "REST API enabled"
-    } else {
-        state.url = ""
-        log.info "REST API disabled"
-    }
-}
-
-private def isRestApiEnabled() {
-    return settings.restApiEnabled && state.accessToken
 }
 
 private def initZones() {
@@ -1147,9 +1119,7 @@ private def initZones() {
             state.zones << [
                 deviceId:   it.id,
                 sensorType: "contact",
-                zoneType:   settings["type_${it.id}"] ?: "exterior",
-                armed:      false,
-                alarm:      null
+                zoneType:   settings["type_${it.id}"] ?: "exterior"
             ]
         }
         subscribe(settings.z_contact, "contact.open", onContact)
@@ -1160,9 +1130,7 @@ private def initZones() {
             state.zones << [
                 deviceId:   it.id,
                 sensorType: "motion",
-                zoneType:   settings["type_${it.id}"] ?: "interior",
-                armed:      false,
-                alarm:      null
+                zoneType:   settings["type_${it.id}"] ?: "interior"
             ]
         }
         subscribe(settings.z_motion, "motion.active", onMotion)
@@ -1173,9 +1141,7 @@ private def initZones() {
             state.zones << [
                 deviceId:   it.id,
                 sensorType: "movement",
-                zoneType:   settings["type_${it.id}"] ?: "interior",
-                armed:      false,
-                alarm:      null
+                zoneType:   settings["type_${it.id}"] ?: "interior"
             ]
         }
         subscribe(settings.z_movement, "acceleration.active", onMovement)
@@ -1186,9 +1152,7 @@ private def initZones() {
             state.zones << [
                 deviceId:   it.id,
                 sensorType: "smoke",
-                zoneType:   settings["type_${it.id}"] ?: "alert",
-                armed:      false,
-                alarm:      null
+                zoneType:   settings["type_${it.id}"] ?: "alert"
             ]
         }
         subscribe(settings.z_smoke, "smoke.detected", onSmoke)
@@ -1202,9 +1166,7 @@ private def initZones() {
             state.zones << [
                 deviceId:   it.id,
                 sensorType: "water",
-                zoneType:   settings["type_${it.id}"] ?: "alert",
-                armed:      false,
-                alarm:      null
+                zoneType:   settings["type_${it.id}"] ?: "alert"
             ]
         }
         subscribe(settings.z_water, "water.wet", onWater)
@@ -1246,8 +1208,28 @@ private def initButtons() {
     }
 }
 
+private def initRestApi() {
+    if (settings.restApiEnabled) {
+        if (!state.accessToken) {
+            def token = createAccessToken()
+            LOG("Created new access token: ${token})")
+        }
+        state.url = "https://graph.api.smartthings.com/api/smartapps/installations/${app.id}/"
+        log.info "REST API enabled"
+    } else {
+        state.url = ""
+        log.info "REST API disabled"
+    }
+}
+
+private def isRestApiEnabled() {
+    return settings.restApiEnabled && state.accessToken
+}
+
 def resetPanel() {
     LOG("resetPanel()")
+
+    atomicState.alarm = null
 
     unschedule()
     settings.alarms*.off()
@@ -1262,34 +1244,6 @@ def resetPanel() {
             }
         }
         state.offSwitches = []
-    }
-
-    atomicState.alarm = false
-
-    // Reset zones
-    atomicState.zones.each() {
-        it.alarm = null
-
-        switch (it.zoneType) {
-        case "alert":
-            it.armed = true
-            break
-
-        case "exterior":
-            it.armed = state.armed
-            break
-
-        case "interior":
-            it.armed = state.armed && !state.stay
-            break
-
-        case "entrance":
-            it.armed = state.armed && (state.stay || state.exitDelay == 0)
-            break
-
-        default:
-            it.armed = false
-        }
     }
 
     // Schedule delayed arming of Entrance zones
@@ -1313,6 +1267,33 @@ def resetPanel() {
     notifyVoice()
 }
 
+private def isZoneArmed(zone) {
+    def armed
+
+    switch (zone.zoneType) {
+    case "alert":
+        armed = true
+        break
+
+    case "exterior":
+        armed = state.armed
+        break
+
+    case "interior":
+        armed = state.armed && !state.stay
+        break
+
+    case "entrance":
+        armed = state.armed && (state.stay || state.exitDelay == 0)
+        break
+
+    default:
+        armed = false
+    }
+
+    return armed
+}
+
 private def onZoneEvent(evt, sensorType) {
     LOG("onZoneEvent(${evt.displayName}, ${sensorType})")
 
@@ -1322,20 +1303,16 @@ private def onZoneEvent(evt, sensorType) {
         return
     }
 
-    if (!zone.armed) {
-        return
-    }
-
-    zone.alarm = evt.displayName
-
-    if (!state.alarm) {
-        // Activate alarm
-        atomicState.alarm = true
-        if (zoneType == "entrance" && state.entryDelay &&
-            !(state.stay && settings.entryDelayDisable)) {
-            myRunIn(state.entryDelay, activateAlarm)
-        } else {
-            activateAlarm()
+    if (isZoneArmed(zone)) {
+        if (!state.alarm) {
+            // Activate alarm
+            atomicState.alarm = evt.displayName
+            if (zoneType == "entrance" && state.entryDelay &&
+                !(state.stay && settings.entryDelayDisable)) {
+                myRunIn(state.entryDelay, activateAlarm)
+            } else {
+                activateAlarm()
+            }
         }
     }
 }
@@ -1414,7 +1391,7 @@ def disarm() {
 def panic() {
     LOG("panic()")
 
-    atomicState.alarm = true;
+    atomicState.alarm = "Panic";
     activateAlarm()
 }
 
@@ -1539,7 +1516,7 @@ def activateAlarm() {
         LOG("switchesOn: ${switchesOn}")
         if (switchesOn) {
             switchesOn*.on()
-            state.offSwitches = switchesOn.collect { it.id }
+            atomicState.offSwitches = switchesOn.collect { it.id }
         }
     }
 
@@ -1553,12 +1530,7 @@ def activateAlarm() {
     }
 
     // Send notifications
-    def msg = "Alarm at ${location.name}!"
-    state.zones.each() {
-        if (it.alarm) {
-            msg += "\n${it.alarm}"
-        }
-    }
+    def msg = "Alarm at ${location.name}!\n${state.alarm}"
     log.info msg
     notify(msg)
     notifyVoice()
@@ -1664,14 +1636,9 @@ private def getStatusPhrase() {
 
     def phrase = ""
     if (state.alarm) {
-        phrase = "Alarm at ${location.name}!"
-        state.zones.each() {
-            if (it.alarm) {
-                phrase += " In zone ${it.alarm}."
-            }
-        }
+        phrase = "Alarm in zone ${state.alarm} at ${location.name}!"
     } else {
-        phrase = "${location.name} alarm is "
+        phrase = "${location.name} security is "
         if (state.armed) {
             def mode = state.stay ? "stay" : "away"
             phrase += "armed in ${mode} mode."
