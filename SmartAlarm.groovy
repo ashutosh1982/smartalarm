@@ -5,7 +5,7 @@
  *  Please visit <http://statusbits.github.io/smartalarm/> for more
  *  information.
  *
- *  Version 2.3.0 (2/11/2015)
+ *  Version 2.3.0 (2/18/2015)
  *
  *  The latest version of this file can be found on GitHub at:
  *  <https://github.com/statusbits/smartalarm/blob/master/SmartAlarm.groovy>
@@ -188,12 +188,7 @@ def pageZoneStatus() {
         if (settings.z_contact) {
             section("Contact Sensors", hideable:true, hidden:false) {
                 settings.z_contact.each() {
-                    def zone = getZoneForDevice(it.id, "contact")
-                    if (zone) {
-                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
-                    } else {
-                        paragraph "Zone '${it.displayName}' not found"
-                    }
+                    paragraph getZoneStatus(zone)
                 }
             }
         }
@@ -201,12 +196,7 @@ def pageZoneStatus() {
         if (settings.z_motion) {
             section("Motion Sensors", hideable:true, hidden:false) {
                 settings.z_motion.each() {
-                    def zone = getZoneForDevice(it.id, "motion")
-                    if (zone) {
-                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
-                    } else {
-                        paragraph "Zone '${it.displayName}' not found"
-                    }
+                    paragraph getZoneStatus(zone)
                 }
             }
         }
@@ -214,12 +204,7 @@ def pageZoneStatus() {
         if (settings.z_movement) {
             section("Movement Sensors", hideable:true, hidden:false) {
                 settings.z_movement.each() {
-                    def zone = getZoneForDevice(it.id, "movement")
-                    if (zone) {
-                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
-                    } else {
-                        paragraph "Zone '${it.displayName}' not found"
-                    }
+                    paragraph getZoneStatus(zone)
                 }
             }
         }
@@ -227,12 +212,7 @@ def pageZoneStatus() {
         if (settings.z_smoke) {
             section("Smoke & CO Sensors", hideable:true, hidden:false) {
                 settings.z_smoke.each() {
-                    def zone = getZoneForDevice(it.id, "smoke")
-                    if (zone) {
-                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
-                    } else {
-                        paragraph "Zone '${it.displayName}' not found"
-                    }
+                    paragraph getZoneStatus(zone)
                 }
             }
         }
@@ -240,12 +220,7 @@ def pageZoneStatus() {
         if (settings.z_water) {
             section("Moisture Sensors", hideable:true, hidden:false) {
                 settings.z_water.each() {
-                    def zone = getZoneForDevice(it.id, "water")
-                    if (zone) {
-                        paragraph "${it.displayName}\n" + getZoneStatus(zone)
-                    } else {
-                        paragraph "Zone '${it.displayName}' not found"
-                    }
+                    paragraph getZoneStatus(zone)
                 }
             }
         }
@@ -1005,7 +980,7 @@ def updated() {
     LOG("updated()")
 
     unsubscribe()
-    unschedule()
+    //unschedule()
     initialize()
 }
 
@@ -1028,6 +1003,7 @@ private def initialize() {
     state._init_ = true
     state.exitDelay = settings.exitDelay?.toInteger() ?: 0
     state.entryDelay = settings.entryDelay?.toInteger() ?: 0
+    state.armDelay = false
     state.offSwitches = []
     state.history = []
 
@@ -1240,11 +1216,11 @@ def resetPanel() {
     LOG("resetPanel()")
 
     state.alarm = null
-
-    unschedule()
     settings.alarms*.off()
 
-    // only turn back off those switches that we turned on
+    unschedule()
+
+    // Turn off only those switches that we've turned on
     def switchesOff = state.offSwitches
     if (switchesOff) {
         LOG("switchesOff: ${switchesOff}")
@@ -1258,7 +1234,10 @@ def resetPanel() {
 
     // Schedule delayed arming of Entrance zones
     if (state.armed && !state.stay && state.exitDelay) {
+        state.armDelay = true
         myRunIn(state.exitDelay, armEntranceZones)
+    } else {
+        state.armDelay = false
     }
 
     updateControlPanel()
@@ -1382,12 +1361,9 @@ def armEntranceZones() {
     LOG("armEntranceZones()")
 
     if (state.armed) {
-        state.zones.each() {
-            if (it.zoneType == "entrance") {
-                //it.armed = true
-            }
-        }
-        def msg = "Entrance zones are armed"
+        state.armDelay = false
+
+        def msg = "Entrance zones armed"
         log.info msg
         notify(msg)
     }
@@ -1475,9 +1451,10 @@ def apiStatus() {
         return httpError(403, "Access denied")
     }
 
-    def status = [:]
-    status.status = state.armed ? (state.stay ? "armed stay" : "armed away") : "disarmed"
-    status.alarm = state.alarm
+    def status = [
+        status: state.armed ? (state.stay ? "armed stay" : "armed away") : "disarmed",
+        alarm:  state.alarm
+    ]
 
     return status
 }
@@ -1554,7 +1531,7 @@ private def notify(msg) {
         }
 
         if (settings.pushbulletAlarm && settings.pushbullet) {
-        	settings.pushbullet*.push(msg)
+            settings.pushbullet*.push(msg)
         }    
     } else {
         // Status change notification
@@ -1581,7 +1558,7 @@ private def notify(msg) {
         }
 
         if (settings.pushbulletStatus && settings.pushbullet) {
-        	settings.pushbullet*.push(msg)
+            settings.pushbullet*.push(msg)
         }
     }
 }
@@ -1644,35 +1621,38 @@ private def getHelloHomeActions() {
 }
 
 private def isZoneArmed(zone) {
-    def armed
-
     switch (zone.zoneType) {
     case "alert":
-        armed = true
-        break
+        return true
 
     case "exterior":
-        armed = state.armed
-        break
+        return state.armed
 
     case "interior":
-        armed = state.armed && !state.stay
-        break
+        return (state.armed && !state.stay)
 
     case "entrance":
-        armed = state.armed && (state.stay || state.exitDelay == 0)
-        break
-
-    default:
-        armed = false
+        return (state.armed && !state.armDelay)
     }
 
-    return armed
+    return false
 }
 
-private def getZoneStatus(zone) {
-    def str = "${zone.zoneType}, "
-    str += isZoneArmed(zone) ? "armed" : "disarmed"
+private def isZoneOpen(zone) {
+    return false
+}
+
+private def getZoneStatus(id, sensorType) {
+    def zone = getZoneForDevice(id, sensorType)
+    if (!zone) {
+        return "Zone '${it.displayName}' not found"
+    }
+
+    def armed = isZoneArmed(zone)
+    def open = isZoneOpen(zone)
+    def str = "${it.displayName}\n${zone.zoneType}, "
+    str += armed ? "Armed, " : "Disarmed, "
+    str += open ? "Open" : "Closed"
 
     return str
 }
@@ -1708,13 +1688,10 @@ private def getDeviceById(id) {
 }
 
 private def myRunIn(delay_s, func) {
-    LOG("myRunIn(${delay_s})")
-
     if (delay_s > 0) {
-        def tms = now() + (delay_s * 1000)
-        def date = new Date(tms)
+        def date = new Date(now() + (delay_s * 1000))
         runOnce(date, func)
-        LOG("'${func}' scheduled to run at ${date}")
+        LOG("scheduled '${func}' to run at ${date}")
     }
 }
 
@@ -1730,8 +1707,16 @@ private def mySendPush(msg) {
     }
 }
 
-private def history(event, decription) {
+private def history(String event, String description = "") {
+    def history = state.history
+    history << [time: now(), event: event, description: description]
+    if (history.size() > 10) {
+        history = history.sort{it.time}
+        history = history[1..-1]
+    }
 
+    LOG("history: ${history}")
+    state.history = history
 }
 
 private def createNetworkId() {
@@ -1742,11 +1727,11 @@ private def createNetworkId() {
 }
 
 private def buildNumber() {
-    return 150211
+    return 150218
 }
 
 private def textVersion() {
-    def text = "Version 2.3.0 (2/11/2015)"
+    def text = "Version 2.3.0 (2/18/2015)"
 }
 
 private def textCopyright() {
